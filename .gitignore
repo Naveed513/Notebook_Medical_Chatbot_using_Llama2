@@ -159,4 +159,5 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+#custom_ignore: heavy model of size above 9gb
 model/llama-2-13b-chat.ggmlv3.q5_1.bin
