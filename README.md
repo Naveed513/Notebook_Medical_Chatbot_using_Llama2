@@ -1,4 +1,4 @@
-# End_to_End_Medical_Chatbot_using_Llama2
+# Notebook_Medical_Chatbot_using_Llama2
 
 ## Steps to run the project
 
