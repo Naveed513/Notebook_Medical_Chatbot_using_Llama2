@@ -14,4 +14,7 @@ conda activate mchatbot
 pip install -r requrements.txt
 ```
 
-## Run the trials.ipynb
+## Download Llama2
+Run the file downloading_llama2.ipynb in model directory to download the Llama2 model.
+
+## Finally run the trials.ipynb
