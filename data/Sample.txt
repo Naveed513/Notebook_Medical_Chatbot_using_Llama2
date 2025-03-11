@@ -1,0 +1,213 @@
+import requests
+import pandas as pd
+import arxiv
+import random
+import json
+from langgraph.graph import StateGraph
+from langgraph.memory import Memory
+from langchain.chat_models import ChatGoogleGenerativeAI
+from langchain.schema import SystemMessage, HumanMessage
+
+# Configure Gemini LLM
+llm = ChatGoogleGenerativeAI(model="gemini-pro", api_key="YOUR_GEMINI_API_KEY")
+
+
+### -------------------- 1. Memory Setup -------------------- ###
+class AgentMemory(Memory):
+    """Custom memory class to store user interactions."""
+    
+    def __init__(self):
+        super().__init__()
+        self.data = {}
+
+    def store(self, key, value):
+        self.data[key] = value
+
+    def retrieve(self, key):
+        return self.data.get(key, None)
+
+
+memory = AgentMemory()
+
+
+### -------------------- 2. Data Retrieval Agents -------------------- ###
+
+def fetch_stock_data(stock_symbol):
+    """Fetch stock data (Simulated)."""
+    stock_data = {
+        "Stock": stock_symbol,
+        "Current Price": random.uniform(100, 300),
+        "High": random.uniform(310, 350),
+        "Low": random.uniform(90, 120),
+        "Open": random.uniform(100, 320),
+    }
+    return stock_data
+
+def fetch_research_papers(query):
+    """Fetch latest research papers from Arxiv."""
+    search = arxiv.Search(query=query, max_results=2, sort_by=arxiv.SortCriterion.SubmittedDate)
+    papers = []
+    for result in search.results():
+        papers.append({"Title": result.title, "Abstract": result.summary})
+    return papers
+
+
+### -------------------- 3. Analysis Agents -------------------- ###
+
+def analyze_stock(stock_data):
+    """Use Gemini to analyze stock data and recommend buy/sell."""
+    prompt = f"""
+    Analyze the following stock data and provide a **buy/sell recommendation**:
+    - Stock: {stock_data["Stock"]}
+    - Current Price: {stock_data["Current Price"]}
+    - High: {stock_data["High"]}
+    - Low: {stock_data["Low"]}
+    - Open: {stock_data["Open"]}
+
+    Provide reasoning and a recommendation.
+    """
+    response = llm([SystemMessage(content=prompt)])
+    return response.content
+
+def summarize_research(papers):
+    """Use Gemini to summarize research papers."""
+    summaries = []
+    for paper in papers:
+        summary_prompt = f"Summarize this research paper:\n\n{paper['Abstract']}"
+        response = llm([SystemMessage(content=summary_prompt)])
+        summaries.append({"Title": paper["Title"], "Summary": response.content})
+    return summaries
+
+
+### -------------------- 4. Decision and Logging Agents -------------------- ###
+
+def store_research_log(summaries):
+    """Save research summaries to a log file."""
+    with open("research_log.txt", "w") as f:
+        for paper in summaries:
+            f.write(f"Title: {paper['Title']}\nSummary: {paper['Summary']}\n\n")
+    return "Research log saved."
+
+
+### -------------------- 5. Agent Graph Setup -------------------- ###
+class QueryAgent:
+    """Agent that decides which task to execute based on user query."""
+
+    def __init__(self, memory):
+        self.memory = memory
+
+    def route_task(self, query):
+        """Uses Gemini LLM to determine which agent should be called."""
+        prompt = f"""
+        The user requested: "{query}"
+        Identify the correct function to execute.
+
+        Respond in JSON format with:
+        {{
+            "task": "stock_analysis" or "research_summary",
+            "parameters": {{"stock_symbol": "AAPL"}} OR {{"topic": "machine learning"}}
+        }}
+        """
+
+        response = llm([SystemMessage(content=prompt)])
+
+        try:
+            task_data = json.loads(response.content)
+        except json.JSONDecodeError:
+            return "Error in task assignment."
+
+        self.memory.store("last_task", task_data)
+        return task_data
+
+
+class StockAgent:
+    """Agent for stock analysis tasks."""
+
+    def __init__(self, memory):
+        self.memory = memory
+
+    def execute(self):
+        """Fetch and analyze stock data."""
+        task_data = self.memory.retrieve("last_task")
+        stock_symbol = task_data["parameters"]["stock_symbol"]
+
+        stock_data = fetch_stock_data(stock_symbol)
+        analysis_result = analyze_stock(stock_data)
+
+        self.memory.store("last_result", analysis_result)
+        return analysis_result
+
+
+class ResearchAgent:
+    """Agent for research summarization."""
+
+    def __init__(self, memory):
+        self.memory = memory
+
+    def execute(self):
+        """Fetch and summarize research papers."""
+        task_data = self.memory.retrieve("last_task")
+        topic = task_data["parameters"]["topic"]
+
+        papers = fetch_research_papers(topic)
+        summaries = summarize_research(papers)
+        log_status = store_research_log(summaries)
+
+        final_output = f"Summarized Research Papers:\n{summaries}\n\n{log_status}"
+        self.memory.store("last_result", final_output)
+        return final_output
+
+
+class ReportAgent:
+    """Agent that returns the final result to the user."""
+
+    def __init__(self, memory):
+        self.memory = memory
+
+    def generate_report(self):
+        """Retrieve the last computed result and return to the user."""
+        return self.memory.retrieve("last_result")
+
+
+### -------------------- 6. Graph Execution -------------------- ###
+# Create the agents
+query_agent = QueryAgent(memory)
+stock_agent = StockAgent(memory)
+research_agent = ResearchAgent(memory)
+report_agent = ReportAgent(memory)
+
+# Define the graph structure
+graph = StateGraph()
+
+graph.add_node("query", query_agent.route_task)
+graph.add_node("stock_analysis", stock_agent.execute)
+graph.add_node("research_summary", research_agent.execute)
+graph.add_node("report", report_agent.generate_report)
+
+# Define edges (decision flow)
+graph.add_edge("query", "stock_analysis", lambda x: x["task"] == "stock_analysis")
+graph.add_edge("query", "research_summary", lambda x: x["task"] == "research_summary")
+graph.add_edge("stock_analysis", "report")
+graph.add_edge("research_summary", "report")
+
+# Define the entry point
+graph.set_entry_point("query")
+
+
+### -------------------- 7. Run User Queries -------------------- ###
+def handle_user_query(user_query):
+    """Pass the user query through the agent system."""
+    result = graph.run(user_query)
+    return result
+
+
+if __name__ == "__main__":
+    # Example: User asks about stocks
+    user_input1 = "Should I invest in Tesla?"
+    result1 = handle_user_query(user_input1)
+    print(result1)
+
+    # Example: User asks about research papers
+    user_input2 = "Summarize recent research on quantum computing."
+    result2 = handle_user_query(user_input2)
+    print(result2)
