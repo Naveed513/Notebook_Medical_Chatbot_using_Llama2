@@ -3,45 +3,38 @@ import pandas as pd
 import arxiv
 import random
 import json
-from langgraph.graph import StateGraph
-from langchain.memory import ConversationBufferWindowMemory
-from langchain.chat_models import ChatGoogleGenerativeAI
-from langchain.schema import SystemMessage
+from google.generativeai.types import ChatGoogleGenerativeAI
 
-# Configure Gemini LLM
-llm = ChatGoogleGenerativeAI(model="gemini-pro", api_key="YOUR_GEMINI_API_KEY")
+# Configure Gemini API
+chatbot = ChatGoogleGenerativeAI(model="gemini-pro", api_key="YOUR_GEMINI_API_KEY")
 
-# ✅ Fixed: Memory correctly initialized
-memory = ConversationBufferWindowMemory(k=3, return_messages=True)
 
 ### -------------------- 1. Data Retrieval Agents -------------------- ###
 
 def fetch_stock_data(stock_symbol):
-    """Fetch stock data (Simulated)."""
-    return {
+    """Fetch live stock data (Simulated here)."""
+    stock_data = {
         "Stock": stock_symbol,
         "Current Price": random.uniform(100, 300),
         "High": random.uniform(310, 350),
         "Low": random.uniform(90, 120),
         "Open": random.uniform(100, 320),
     }
+    return stock_data
 
 def fetch_research_papers(query):
     """Fetch latest research papers from Arxiv."""
     search = arxiv.Search(query=query, max_results=2, sort_by=arxiv.SortCriterion.SubmittedDate)
-    papers = [{"Title": result.title, "Abstract": result.summary} for result in search.results()]
+    papers = []
+    for result in search.results():
+        papers.append({"Title": result.title, "Abstract": result.summary})
     return papers
 
 
 ### -------------------- 2. Analysis Agents -------------------- ###
 
-def analyze_stock(state):
-    """Use Gemini to analyze stock data and recommend buy/sell."""
-    stock_data = state.get("stock_data")
-    
-    if not stock_data:
-        return {"error": "No stock data found."}
-    
+def analyze_stock(stock_data):
+    """Use Gemini LLM to analyze stock data and generate a buy/sell recommendation."""
     prompt = f"""
     Analyze the following stock data and provide a **buy/sell recommendation**:
     - Stock: {stock_data["Stock"]}
@@ -50,137 +43,76 @@ def analyze_stock(state):
     - Low: {stock_data["Low"]}
     - Open: {stock_data["Open"]}
 
-    Provide reasoning and a recommendation.
+    Provide a brief reasoning and recommendation.
     """
-    response = llm([SystemMessage(content=prompt)])
-    
-    state["stock_analysis"] = response.content
-    return state
+    response = chatbot.send_message(prompt)
+    return response.text
 
-def summarize_research(state):
-    """Use Gemini to summarize research papers."""
-    papers = state.get("research_papers")
-    
-    if not papers:
-        return {"error": "No research papers found."}
-    
+def summarize_research(papers):
+    """Use Gemini LLM to summarize research papers."""
     summaries = []
     for paper in papers:
-        summary_prompt = f"Summarize this research paper:\n\n{paper['Abstract']}"
-        response = llm([SystemMessage(content=summary_prompt)])
-        summaries.append({"Title": paper["Title"], "Summary": response.content})
-    
-    state["research_summaries"] = summaries
-    return state
+        summary_prompt = f"Summarize the following research paper:\n\n{paper['Abstract']}"
+        response = chatbot.send_message(summary_prompt)
+        summaries.append({"Title": paper["Title"], "Summary": response.text})
+    return summaries
 
 
 ### -------------------- 3. Decision and Logging Agents -------------------- ###
 
-def store_research_log(state):
-    """Save research summaries to a log file."""
-    summaries = state.get("research_summaries")
-    
-    if not summaries:
-        return {"error": "No summaries available for logging."}
-    
+def store_research_log(summaries):
+    """Save research summaries into a log file."""
     with open("research_log.txt", "w") as f:
         for paper in summaries:
             f.write(f"Title: {paper['Title']}\nSummary: {paper['Summary']}\n\n")
+    return "Research log saved."
+
+
+### -------------------- 4. Agent-Based Task Execution -------------------- ###
+
+def execute_task(user_query):
+    """Main AI Agent that dynamically selects and calls relevant sub-agents."""
     
-    state["log_status"] = "Research log saved."
-    return state
-
-
-### -------------------- 4. Task Routing Agent -------------------- ###
-def route_task(state):
-    """Decides which function should be executed based on user input."""
-    user_query = state["user_query"]
-
-    prompt = f"""
-    The user requested: "{user_query}"
-    Identify the correct function to execute.
-
-    Respond in JSON format with:
+    task_prompt = f"""
+    The user has requested: "{user_query}"
+    Determine which function should be called to fulfill this request. Respond in JSON format with:
     {{
         "task": "stock_analysis" or "research_summary",
         "parameters": {{"stock_symbol": "AAPL"}} OR {{"topic": "machine learning"}}
     }}
     """
 
-    response = llm([SystemMessage(content=prompt)])
-
+    response = chatbot.send_message(task_prompt)
+    
     try:
-        task_data = json.loads(response.content)
+        task_data = json.loads(response.text)
     except json.JSONDecodeError:
-        return {"error": "Invalid response from LLM"}
+        return "Error in task assignment. Please try again."
 
-    state["task_data"] = task_data
-    return state
+    if task_data["task"] == "stock_analysis":
+        stock_data = fetch_stock_data(task_data["parameters"]["stock_symbol"])
+        analysis_result = analyze_stock(stock_data)
+        return analysis_result
 
+    elif task_data["task"] == "research_summary":
+        papers = fetch_research_papers(task_data["parameters"]["topic"])
+        summaries = summarize_research(papers)
+        log_status = store_research_log(summaries)
+        return f"Summarized Research Papers:\n{summaries}\n\n{log_status}"
 
-### -------------------- 5. Data Retrieval Handlers -------------------- ###
-
-def get_stock_data(state):
-    """Retrieves stock data based on user request."""
-    task_data = state.get("task_data")
-    
-    if task_data.get("task") == "stock_analysis":
-        stock_symbol = task_data["parameters"]["stock_symbol"]
-        state["stock_data"] = fetch_stock_data(stock_symbol)
-    
-    return state
-
-def get_research_data(state):
-    """Retrieves research papers based on user request."""
-    task_data = state.get("task_data")
-    
-    if task_data.get("task") == "research_summary":
-        topic = task_data["parameters"]["topic"]
-        state["research_papers"] = fetch_research_papers(topic)
-    
-    return state
+    else:
+        return "Invalid task. Please rephrase your request."
 
 
-### -------------------- 6. Graph Execution -------------------- ###
-# ✅ Fixed: Graph Execution with Correct Nodes and Transitions
+### -------------------- 5. Example User Queries -------------------- ###
 
-graph = StateGraph()
-
-# Nodes
-graph.add_node("query", route_task)
-graph.add_node("get_stock", get_stock_data)
-graph.add_node("get_research", get_research_data)
-graph.add_node("stock_analysis", analyze_stock)
-graph.add_node("research_summary", summarize_research)
-graph.add_node("log_research", store_research_log)
-
-# Edges
-graph.add_edge("query", "get_stock", condition=lambda state: state["task_data"]["task"] == "stock_analysis")
-graph.add_edge("query", "get_research", condition=lambda state: state["task_data"]["task"] == "research_summary")
-graph.add_edge("get_stock", "stock_analysis")
-graph.add_edge("get_research", "research_summary")
-graph.add_edge("research_summary", "log_research")
-
-# Entry point
-graph.set_entry_point("query")
-
-
-### -------------------- 7. Run User Queries -------------------- ###
-def handle_user_query(user_query):
-    """Pass the user query through the agent system."""
-    initial_state = {"user_query": user_query}
-    result = graph.run(initial_state)
-    return result
-
-
-# ✅ **Testing Fixes**
 if __name__ == "__main__":
-    # Example: User asks about stocks
-    user_input1 = "Should I invest in Tesla?"
-    result1 = handle_user_query(user_input1)
+    # User asks for stock analysis
+    user_input1 = "Should I invest in AAPL stocks?"
+    result1 = execute_task(user_input1)
     print(result1)
 
-    # Example: User asks about research papers
-    user_input2 = "Summarize recent research on quantum computing."
-    result2 = handle_user_query(user_input2)
+    # User asks for research papers
+    user_input2 = "Summarize the latest research on AI ethics."
+    result2 = execute_task(user_input2)
     print(result2)
