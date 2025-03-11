@@ -4,33 +4,17 @@ import arxiv
 import random
 import json
 from langgraph.graph import StateGraph
-from langgraph.memory import Memory
+from langchain.memory import ConversationBufferMemory
 from langchain.chat_models import ChatGoogleGenerativeAI
 from langchain.schema import SystemMessage, HumanMessage
 
 # Configure Gemini LLM
 llm = ChatGoogleGenerativeAI(model="gemini-pro", api_key="YOUR_GEMINI_API_KEY")
 
+# Memory Setup (Using Langchain's ConversationBufferMemory)
+memory = ConversationBufferMemory(return_messages=True)
 
-### -------------------- 1. Memory Setup -------------------- ###
-class AgentMemory(Memory):
-    """Custom memory class to store user interactions."""
-    
-    def __init__(self):
-        super().__init__()
-        self.data = {}
-
-    def store(self, key, value):
-        self.data[key] = value
-
-    def retrieve(self, key):
-        return self.data.get(key, None)
-
-
-memory = AgentMemory()
-
-
-### -------------------- 2. Data Retrieval Agents -------------------- ###
+### -------------------- 1. Data Retrieval Agents -------------------- ###
 
 def fetch_stock_data(stock_symbol):
     """Fetch stock data (Simulated)."""
@@ -52,7 +36,7 @@ def fetch_research_papers(query):
     return papers
 
 
-### -------------------- 3. Analysis Agents -------------------- ###
+### -------------------- 2. Analysis Agents -------------------- ###
 
 def analyze_stock(stock_data):
     """Use Gemini to analyze stock data and recommend buy/sell."""
@@ -79,7 +63,7 @@ def summarize_research(papers):
     return summaries
 
 
-### -------------------- 4. Decision and Logging Agents -------------------- ###
+### -------------------- 3. Decision and Logging Agents -------------------- ###
 
 def store_research_log(summaries):
     """Save research summaries to a log file."""
@@ -89,12 +73,12 @@ def store_research_log(summaries):
     return "Research log saved."
 
 
-### -------------------- 5. Agent Graph Setup -------------------- ###
+### -------------------- 4. Agent Graph Setup -------------------- ###
 class QueryAgent:
     """Agent that decides which task to execute based on user query."""
 
-    def __init__(self, memory):
-        self.memory = memory
+    def __init__(self):
+        pass
 
     def route_task(self, query):
         """Uses Gemini LLM to determine which agent should be called."""
@@ -116,65 +100,56 @@ class QueryAgent:
         except json.JSONDecodeError:
             return "Error in task assignment."
 
-        self.memory.store("last_task", task_data)
+        memory.save_context({"last_task": task_data})
         return task_data
 
 
 class StockAgent:
     """Agent for stock analysis tasks."""
 
-    def __init__(self, memory):
-        self.memory = memory
-
     def execute(self):
         """Fetch and analyze stock data."""
-        task_data = self.memory.retrieve("last_task")
-        stock_symbol = task_data["parameters"]["stock_symbol"]
+        task_data = memory.load_memory_variables({}).get("last_task", {})
+        stock_symbol = task_data.get("parameters", {}).get("stock_symbol", "AAPL")
 
         stock_data = fetch_stock_data(stock_symbol)
         analysis_result = analyze_stock(stock_data)
 
-        self.memory.store("last_result", analysis_result)
+        memory.save_context({"last_result": analysis_result})
         return analysis_result
 
 
 class ResearchAgent:
     """Agent for research summarization."""
 
-    def __init__(self, memory):
-        self.memory = memory
-
     def execute(self):
         """Fetch and summarize research papers."""
-        task_data = self.memory.retrieve("last_task")
-        topic = task_data["parameters"]["topic"]
+        task_data = memory.load_memory_variables({}).get("last_task", {})
+        topic = task_data.get("parameters", {}).get("topic", "AI")
 
         papers = fetch_research_papers(topic)
         summaries = summarize_research(papers)
         log_status = store_research_log(summaries)
 
         final_output = f"Summarized Research Papers:\n{summaries}\n\n{log_status}"
-        self.memory.store("last_result", final_output)
+        memory.save_context({"last_result": final_output})
         return final_output
 
 
 class ReportAgent:
     """Agent that returns the final result to the user."""
 
-    def __init__(self, memory):
-        self.memory = memory
-
     def generate_report(self):
         """Retrieve the last computed result and return to the user."""
-        return self.memory.retrieve("last_result")
+        return memory.load_memory_variables({}).get("last_result", "No previous results found.")
 
 
-### -------------------- 6. Graph Execution -------------------- ###
+### -------------------- 5. Graph Execution -------------------- ###
 # Create the agents
-query_agent = QueryAgent(memory)
-stock_agent = StockAgent(memory)
-research_agent = ResearchAgent(memory)
-report_agent = ReportAgent(memory)
+query_agent = QueryAgent()
+stock_agent = StockAgent()
+research_agent = ResearchAgent()
+report_agent = ReportAgent()
 
 # Define the graph structure
 graph = StateGraph()
@@ -194,7 +169,7 @@ graph.add_edge("research_summary", "report")
 graph.set_entry_point("query")
 
 
-### -------------------- 7. Run User Queries -------------------- ###
+### -------------------- 6. Run User Queries -------------------- ###
 def handle_user_query(user_query):
     """Pass the user query through the agent system."""
     result = graph.run(user_query)
