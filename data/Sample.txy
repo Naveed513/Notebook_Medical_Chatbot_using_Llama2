@@ -1,0 +1,163 @@
+import pandas as pd
+
+import random
+
+from faker import Faker
+
+
+
+# Initialize Faker
+
+fake = Faker()
+
+
+
+# Define email subjects and templates
+
+email_templates = [
+
+    {
+
+        "subject": "Meeting Reminder: {topic}",
+
+        "body": "Dear {name},\n\nThis is a reminder about our scheduled meeting on {date} at {time}. The topic of discussion is '{topic}'. Please ensure to review the agenda beforehand.\n\nBest regards,\n{sender}"
+
+    },
+
+    {
+
+        "subject": "Invoice #{invoice_number} Due Reminder",
+
+        "body": "Dear {name},\n\nThis is a friendly reminder that Invoice #{invoice_number} is due on {due_date}. Please ensure the payment is made on time to avoid any late fees.\n\nBest regards,\n{sender}"
+
+    },
+
+    {
+
+        "subject": "Your Order #{order_number} has been Shipped!",
+
+        "body": "Dear {name},\n\nWe are pleased to inform you that your order #{order_number} has been shipped on {shipping_date}. The expected delivery date is {delivery_date}. You can track your order using this link: {tracking_link}.\n\nBest regards,\n{sender}"
+
+    },
+
+    {
+
+        "subject": "Job Offer from {company_name}",
+
+        "body": "Dear {name},\n\nWe are excited to offer you the position of {position} at {company_name}. Your start date will be {start_date}. Please review the attached offer letter and let us know your decision by {response_deadline}.\n\nBest regards,\n{sender}"
+
+    },
+
+    {
+
+        "subject": "Security Alert: Unusual Login Attempt",
+
+        "body": "Dear {name},\n\nWe detected an unusual login attempt to your account from {location} on {date} at {time}. If this was you, no further action is needed. If not, please reset your password immediately.\n\nBest regards,\nSecurity Team"
+
+    }
+
+]
+
+
+
+# Generate synthetic email data
+
+email_data = []
+
+for _ in range(10):  # Generate 10 random emails
+
+    template = random.choice(email_templates)
+
+    email_data.append({
+
+        "From": fake.email(),
+
+        "To": fake.email(),
+
+        "Subject": template["subject"].format(
+
+            name=fake.name(),
+
+            date=fake.date_this_month(),
+
+            time=fake.time(),
+
+            topic=fake.sentence(nb_words=3),
+
+            invoice_number=fake.random_int(min=1000, max=9999),
+
+            due_date=fake.date_this_month(),
+
+            order_number=fake.random_int(min=10000, max=99999),
+
+            shipping_date=fake.date_this_month(),
+
+            delivery_date=fake.date_this_month(),
+
+            tracking_link=fake.url(),
+
+            company_name=fake.company(),
+
+            position=fake.job(),
+
+            start_date=fake.date_this_month(),
+
+            response_deadline=fake.date_this_month(),
+
+            location=fake.city(),
+
+            sender=fake.name()
+
+        ),
+
+        "Body": template["body"].format(
+
+            name=fake.name(),
+
+            date=fake.date_this_month(),
+
+            time=fake.time(),
+
+            topic=fake.sentence(nb_words=3),
+
+            invoice_number=fake.random_int(min=1000, max=9999),
+
+            due_date=fake.date_this_month(),
+
+            order_number=fake.random_int(min=10000, max=99999),
+
+            shipping_date=fake.date_this_month(),
+
+            delivery_date=fake.date_this_month(),
+
+            tracking_link=fake.url(),
+
+            company_name=fake.company(),
+
+            position=fake.job(),
+
+            start_date=fake.date_this_month(),
+
+            response_deadline=fake.date_this_month(),
+
+            location=fake.city(),
+
+            sender=fake.name()
+
+        )
+
+    })
+
+
+
+# Convert to DataFrame
+
+df_emails = pd.DataFrame(email_data)
+
+
+
+# Display the synthetic email data
+
+import ace_tools as tools
+
+tools.display_dataframe_to_user(name="Synthetic Email Data", dataframe=df_emails)
