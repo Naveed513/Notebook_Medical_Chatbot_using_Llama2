@@ -1,163 +1,231 @@
-import pandas as pd
-
-import random
-
-from faker import Faker
-
-
-
-# Initialize Faker
-
-fake = Faker()
-
-
-
-# Define email subjects and templates
-
-email_templates = [
-
-    {
-
-        "subject": "Meeting Reminder: {topic}",
-
-        "body": "Dear {name},\n\nThis is a reminder about our scheduled meeting on {date} at {time}. The topic of discussion is '{topic}'. Please ensure to review the agenda beforehand.\n\nBest regards,\n{sender}"
-
-    },
-
-    {
-
-        "subject": "Invoice #{invoice_number} Due Reminder",
-
-        "body": "Dear {name},\n\nThis is a friendly reminder that Invoice #{invoice_number} is due on {due_date}. Please ensure the payment is made on time to avoid any late fees.\n\nBest regards,\n{sender}"
-
-    },
-
-    {
-
-        "subject": "Your Order #{order_number} has been Shipped!",
-
-        "body": "Dear {name},\n\nWe are pleased to inform you that your order #{order_number} has been shipped on {shipping_date}. The expected delivery date is {delivery_date}. You can track your order using this link: {tracking_link}.\n\nBest regards,\n{sender}"
-
-    },
-
-    {
-
-        "subject": "Job Offer from {company_name}",
-
-        "body": "Dear {name},\n\nWe are excited to offer you the position of {position} at {company_name}. Your start date will be {start_date}. Please review the attached offer letter and let us know your decision by {response_deadline}.\n\nBest regards,\n{sender}"
-
-    },
-
-    {
-
-        "subject": "Security Alert: Unusual Login Attempt",
-
-        "body": "Dear {name},\n\nWe detected an unusual login attempt to your account from {location} on {date} at {time}. If this was you, no further action is needed. If not, please reset your password immediately.\n\nBest regards,\nSecurity Team"
-
-    }
-
-]
-
-
-
-# Generate synthetic email data
-
-email_data = []
-
-for _ in range(10):  # Generate 10 random emails
-
-    template = random.choice(email_templates)
-
-    email_data.append({
-
-        "From": fake.email(),
-
-        "To": fake.email(),
-
-        "Subject": template["subject"].format(
-
-            name=fake.name(),
-
-            date=fake.date_this_month(),
-
-            time=fake.time(),
-
-            topic=fake.sentence(nb_words=3),
-
-            invoice_number=fake.random_int(min=1000, max=9999),
-
-            due_date=fake.date_this_month(),
-
-            order_number=fake.random_int(min=10000, max=99999),
-
-            shipping_date=fake.date_this_month(),
-
-            delivery_date=fake.date_this_month(),
-
-            tracking_link=fake.url(),
-
-            company_name=fake.company(),
-
-            position=fake.job(),
-
-            start_date=fake.date_this_month(),
-
-            response_deadline=fake.date_this_month(),
-
-            location=fake.city(),
-
-            sender=fake.name()
-
-        ),
-
-        "Body": template["body"].format(
-
-            name=fake.name(),
-
-            date=fake.date_this_month(),
-
-            time=fake.time(),
-
-            topic=fake.sentence(nb_words=3),
-
-            invoice_number=fake.random_int(min=1000, max=9999),
-
-            due_date=fake.date_this_month(),
-
-            order_number=fake.random_int(min=10000, max=99999),
-
-            shipping_date=fake.date_this_month(),
-
-            delivery_date=fake.date_this_month(),
-
-            tracking_link=fake.url(),
-
-            company_name=fake.company(),
-
-            position=fake.job(),
-
-            start_date=fake.date_this_month(),
-
-            response_deadline=fake.date_this_month(),
-
-            location=fake.city(),
-
-            sender=fake.name()
-
-        )
-
-    })
-
-
-
-# Convert to DataFrame
-
-df_emails = pd.DataFrame(email_data)
-
-
-
-# Display the synthetic email data
-
-import ace_tools as tools
-
-tools.display_dataframe_to_user(name="Synthetic Email Data", dataframe=df_emails)
+# Langflow Environment Variables - Complete Guide
+
+## 1. `DO_NOT_TRACK`
+- **Type**: Boolean (true/false)
+- **Default**: `false`
+- **Description**: Disable telemetry tracking.
+
+## 2. `LANGFLOW_AUTO_LOGIN`
+- **Type**: Boolean
+- **Default**: `true`
+- **Description**: Auto login without credentials.
+
+## 3. `LANGFLOW_AUTO_SAVING`
+- **Type**: Boolean
+- **Default**: `true`
+- **Description**: Enable auto-saving of flows.
+
+## 4. `LANGFLOW_AUTO_SAVING_INTERVAL`
+- **Type**: Integer (ms)
+- **Default**: `1000`
+- **Description**: Interval for auto-saving.
+
+## 5. `LANGFLOW_BACKEND_ONLY`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Run only backend, no frontend.
+
+## 6. `LANGFLOW_BUNDLE_URLS`
+- **Type**: List of Strings
+- **Default**: `[]`
+- **Description**: URLs to load bundles.
+
+## 7. `LANGFLOW_CACHE_TYPE`
+- **Type**: String
+- **Default**: `async`
+- **Description**: Type of cache (async, redis, etc.).
+
+## 8. `LANGFLOW_COMPONENTS_PATH`
+- **Type**: String
+- **Default**: `langflow/components`
+- **Description**: Path to custom components.
+
+## 9. `LANGFLOW_CONFIG_DIR`
+- **Type**: String
+- **Default**: `-`
+- **Description**: Path to config files.
+
+## 10. `LANGFLOW_DATABASE_URL`
+- **Type**: String
+- **Default**: `-`
+- **Description**: DB connection string.
+
+## 11. `LANGFLOW_DEV`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Enable development mode.
+
+## 12. `LANGFLOW_FALLBACK_TO_ENV_VAR`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Use env vars as fallback.
+
+## 13. `LANGFLOW_HEALTH_CHECK_MAX_RETRIES`
+- **Type**: Integer
+- **Default**: `5`
+- **Description**: Max retries for health check.
+
+## 14. `LANGFLOW_HOST`
+- **Type**: String
+- **Default**: `127.0.0.1`
+- **Description**: Host to run Langflow.
+
+## 15. `LANGFLOW_LANGCHAIN_CACHE`
+- **Type**: String
+- **Default**: `InMemoryCache`
+- **Description**: LangChain cache backend.
+
+## 16. `LANGFLOW_MAX_FILE_SIZE_UPLOAD`
+- **Type**: Integer
+- **Default**: `10000`
+- **Description**: Max file size for uploads.
+
+## 17. `LANGFLOW_OPEN_BROWSER`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Open browser on start.
+
+## 18. `LANGFLOW_REMOVE_API_KEYS`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Remove API keys from logs.
+
+## 19. `LANGFLOW_SAVE_DB_IN_CONFIG_DIR`
+- **Type**: Boolean
+- **Default**: `true`
+- **Description**: Save DB in config dir.
+
+## 20. `LANGFLOW_STORE`
+- **Type**: Boolean
+- **Default**: `true`
+- **Description**: Store flow execution data.
+
+## 21. `LANGFLOW_STORE_ENVIRONMENT_VARIABLES`
+- **Type**: Boolean
+- **Default**: `true`
+- **Description**: Store env vars in flow.
+
+## 22. `LANGFLOW_WORKER_TIMEOUT`
+- **Type**: Integer (ms)
+- **Default**: `60000`
+- **Description**: Worker timeout.
+
+## 23. `LANGFLOW_WORKERS`
+- **Type**: Integer
+- **Default**: `3`
+- **Description**: Number of workers.
+
+## 24. `LANGFLOW_VARIABLES_TO_GET_FROM_ENVIRONMENT`
+- **Type**: List of Strings
+- **Default**: `[]`
+- **Description**: Import vars as globals.
+
+## 25. `LANGFLOW_NEW_USER_IS_ACTIVE`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: New users active by default.
+
+## 26. `LANGFLOW_NEW_USER_IS_SUPERUSER`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: New users are superusers.
+
+## 27. `LANGFLOW_REDIS_HOST`
+- **Type**: String
+- **Default**: `localhost`
+- **Description**: Redis host.
+
+## 28. `LANGFLOW_REDIS_PORT`
+- **Type**: Integer
+- **Default**: `6379`
+- **Description**: Redis port.
+
+## 29. `LANGFLOW_REDIS_DB`
+- **Type**: Integer
+- **Default**: `0`
+- **Description**: Redis DB index.
+
+## 30. `LANGFLOW_REDIS_CACHE_EXPIRE`
+- **Type**: Integer (s)
+- **Default**: `3600`
+- **Description**: Redis cache expiration.
+
+## 31. `LANGFLOW_LOG_FILE`
+- **Type**: String
+- **Default**: `logs/langflow.log`
+- **Description**: Path to log file.
+
+## 32. `LANGFLOW_FRONTEND_PATH`
+- **Type**: String
+- **Default**: `./frontend`
+- **Description**: Path to frontend files.
+
+## 33. `LANGFLOW_ENABLE_LOG_RETRIEVAL`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Enable log retrieval.
+
+## 34. `LANGFLOW_DB_CONNECTION_SETTINGS`
+- **Type**: JSON
+- **Default**: `-`
+- **Description**: Extra DB connection settings.
+
+## 35. `LANGFLOW_DB_CONNECT_TIMEOUT`
+- **Type**: Integer (s)
+- **Default**: `20`
+- **Description**: DB connection timeout.
+
+## 36. `LANGFLOW_DB_POOL_SIZE`
+- **Type**: Integer
+- **Default**: `10`
+- **Description**: DB pool size.
+
+## 37. `LANGFLOW_DB_MAX_OVERFLOW`
+- **Type**: Integer
+- **Default**: `20`
+- **Description**: DB overflow connections.
+
+## 38. `LANGFLOW_DATABASE_CONNECTION_RETRY`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Retry DB connection.
+
+## 39. `LANGFLOW_CORS_ORIGINS`
+- **Type**: String (comma-separated)
+- **Default**: `-`
+- **Description**: CORS origin URLs.
+
+## 40. `LANGFLOW_LOG_LEVEL`
+- **Type**: String
+- **Default**: `error`
+- **Description**: Log verbosity level.
+
+## 41. `LANGFLOW_PORT`
+- **Type**: Integer
+- **Default**: `7860`
+- **Description**: Port to run Langflow.
+
+## 42. `LANGFLOW_SECRET_KEY`
+- **Type**: String
+- **Default**: `-`
+- **Description**: Secret key for encryption.
+
+## 43. `LANGFLOW_SUPERUSER`
+- **Type**: String
+- **Default**: `-`
+- **Description**: Admin username.
+
+## 44. `LANGFLOW_SUPERUSER_PASSWORD`
+- **Type**: String
+- **Default**: `-`
+- **Description**: Admin password.
+
+## 45. `LANGFLOW_OPENAPI_DOCS`
+- **Type**: Boolean
+- **Default**: `true`
+- **Description**: Enable OpenAPI docs.
+
+## 46. `LANGFLOW_ANALYTICS_ENABLED`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Enable anonymous analytics.
